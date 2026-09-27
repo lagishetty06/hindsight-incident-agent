@@ -1,0 +1,5 @@
+venv/
+.pg0/
+.hindsight/
+__pycache__/
+*.log
