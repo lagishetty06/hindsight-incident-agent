@@ -30,19 +30,19 @@ Instead of acting as a stateless chatbot, this agent retains verified post-morte
 
 
 
-\## Architecture \& Workflow
+## Architecture & Workflow
 
-
-
-1\. \*\*Retain Phase:\*\* When an outage is resolved, the agent indexes the incident description, root cause, and runbook fix into Hindsight.
-
-2\. \*\*Recall Phase:\*\* Incoming alerts query the organizational memory bank.
-
-3\. \*\*Reasoning Phase:\*\* An LLM receives the recalled context and generates a 2-step diagnosis and remediation plan.
-
-
-
-\---
+```mermaid
+flowchart TD
+    A[Senior SRE Resolves Outage] -->|Verified Runbook & Root Cause| B(Hindsight Retain API)
+    B --> C[(Local pgvector Fact Store)]
+    
+    D[Incoming Production Alert] --> E(Hindsight Recall API)
+    C -->|Semantic Match Historical Facts| E
+    
+    E --> F[Gemini 2.5 Flash Reasoner]
+    D --> F
+    F --> G[Production Remediation Runbook & Bash Commands]
 
 
 

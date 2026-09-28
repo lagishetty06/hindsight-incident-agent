@@ -89,6 +89,17 @@ if __name__ == "__main__":
         fix_command="Execute 'redis-cli config set maxmemory-policy volatile-lru' and double the allocated RAM buffer."
     )
 
-    print("\n[STEP 2] Simulating incoming real-time alert...")
-    test_alert = "CRITICAL ALERT: Postgres database rejecting connections, error says slots are fully occupied!"
-    diagnose_alert(test_alert)
+    print("\n[STEP 2] Simulating incoming real-time alert (Postgres)...")
+    test_alert_1 = "CRITICAL ALERT: Postgres database rejecting connections, error says slots are fully occupied!"
+    diagnose_alert(test_alert_1)
+
+    print("\n[STEP 3] Dynamically teaching agent a new incident resolution...")
+    retain_resolution(
+        incident_title="Kafka consumer lag spike on 'orders-stream'",
+        root_cause="Stuck worker thread deadlocked on unhandled null JSON payload.",
+        fix_command="sudo systemctl restart order-consumer && kubectl scale deployment order-consumer --replicas=5"
+    )
+
+    print("\n[STEP 4] Simulating incoming real-time alert for newly learned event (Kafka)...")
+    test_alert_2 = "WARNING: Order consumer lag exceeds 50,000 messages, processing halted!"
+    diagnose_alert(test_alert_2)
