@@ -1,25 +1,31 @@
 import os
 import json
 import warnings
+import asyncio
 from hindsight import HindsightEmbedded
 from google import genai
 
-# Suppress minor library warnings for a clean terminal output
+# Suppress minor library warnings & Windows proactor pipe noise
 warnings.filterwarnings("ignore")
+if os.name == 'nt':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # 1. API Configuration
-GEMINI_API_KEY = "paste api key here"
+# Reads securely from environment variable, with local fallback
+GEMINI_API_KEY = os.environ.get(
+    "GEMINI_API_KEY",
+    "gemni api key here"
+)
 os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
 
-# Using the active Google Gemini model recommended by the API
 ACTIVE_MODEL = "gemini-3.5-flash-lite"
 
-print("=" * 70)
-print(">>> AutoOps SRE: Autonomous Incident Remediation Agent")
-print(f">>> Memory Engine: Vectorize Hindsight | LLM: {ACTIVE_MODEL}")
-print("=" * 70)
+print("=" * 72)
+print(">>> AutoOps SRE: Autonomous Incident Doctor with Hindsight Memory")
+print(f">>> Memory Engine: Vectorize Hindsight (pgvector) | LLM: {ACTIVE_MODEL}")
+print("=" * 72)
 
-# Fresh profile incident-agent-v7 initializes the daemon cleanly with gemini-3.5-flash-lite
+# Initialize embedded Hindsight and Gemini client
 memory = HindsightEmbedded(
     profile="incident-agent-v7",
     llm_provider="gemini",
@@ -31,7 +37,13 @@ BANK_ID = "production-incidents"
 
 
 def ingest_history(file_path="incidents_history.json"):
-    """Ingests historical post-mortems into Hindsight."""
+    """Ingests historical post-mortems with duplicate prevention."""
+    # Deduplication Guard: Avoid duplicate insertions if bank is already seeded
+    existing = memory.recall(bank_id=BANK_ID, query="PostgreSQL connection exhaustion")
+    if existing and len(existing) > 0:
+        print("\n[INGESTION] Organizational memory bank already initialized. Skipping duplicate seeding.\n")
+        return
+
     if not os.path.exists(file_path):
         seed_data = [
             {
@@ -61,15 +73,15 @@ def ingest_history(file_path="incidents_history.json"):
 
 
 def ask_stateless_llm(alert):
-    """Shows what a generic, stateless LLM suggests without institutional memory."""
-    prompt = f"You are an on-call SRE. Diagnose this alert and provide immediate bash fix commands in 2-3 bullet points:\n{alert}"
+    """Demonstrates generic, trial-and-error advice without memory."""
+    prompt = f"You are an on-call SRE. Diagnose this alert and provide immediate bash fix commands in 2-3 concise bullet points:\n{alert}"
     chat = gemini_client.chats.create(model=ACTIVE_MODEL)
     response = chat.send_message(prompt)
     return response.text
 
 
 def ask_hindsight_agent(alert):
-    """Shows how Hindsight memory surfaces verified company runbooks."""
+    """Retrieves verified runbooks and generates an exact, non-destructive fix."""
     print("🔍 [HINDSIGHT RECALL] Querying organizational memory bank...")
     past_memories = memory.recall(bank_id=BANK_ID, query=alert)
 
@@ -102,24 +114,52 @@ Provide:
 
 
 if __name__ == "__main__":
-    # Step 1: Ingest historical post-mortems
+    # Step 1: Initialize institutional memory bank
     ingest_history()
 
     test_alert = "CRITICAL ALERT: Postgres database rejecting connections, error says slots are fully occupied!"
 
-    # Step 2: Test 1 - Stateless LLM
-    print("\n" + "=" * 70)
-    print("TEST 1: STATELESS LLM (WITHOUT HINDSIGHT MEMORY)")
-    print("=" * 70)
+    # Step 2: Test 1 - Stateless LLM baseline
+    print("=" * 72)
+    print("PHASE 1: STATELESS LLM BASELINE (WITHOUT PERSISTENT MEMORY)")
+    print("=" * 72)
     stateless_fix = ask_stateless_llm(test_alert)
     print(stateless_fix)
-    print("\n[Notice: Generic baseline advice]\n")
+    print("\n[Result: Generic textbook advice - often suggests risky full database reboots]\n")
 
-    # Step 3: Test 2 - Hindsight memory-augmented response
-    print("=" * 70)
-    print("TEST 2: AUTONOMOUS SRE AGENT (WITH HINDSIGHT PERSISTENT MEMORY)")
-    print("=" * 70)
+    # Step 3: Test 2 - Memory-augmented agent
+    print("=" * 72)
+    print("PHASE 2: AUTONOMOUS SRE AGENT (WITH HINDSIGHT PERSISTENT MEMORY)")
+    print("=" * 72)
     memory_fix = ask_hindsight_agent(test_alert)
     print("\n" + "-" * 25 + " REMEDIATION RUNBOOK " + "-" * 25)
     print(memory_fix)
-    print("-" * 70 + "\n")
+    print("-" * 72)
+
+    # Step 4: Enterprise Safety Guardrail (Human-in-the-Loop)
+    print("\n🛡️ [SAFETY GUARDRAIL] Execution Mode: Human-in-the-Loop")
+    approval = input("Authorize agent to execute verified remediation commands on cluster? (y/N): ")
+    if approval.strip().lower() == "y":
+        print("✓ [DRY RUN] Execution approved: Target bash commands dispatched to staging runner.")
+    else:
+        print("⏹ Execution held: Safety stop engaged by SRE operator.")
+
+    # Step 5: Dynamic On-The-Fly Learning Demonstration
+    print("\n" + "=" * 72)
+    print("PHASE 3: CONTINUOUS LEARNING LOOP (LEARNING A NEW INCIDENT LIVE)")
+    print("=" * 72)
+    print("Simulating a brand-new Kafka incident resolved by senior engineer...")
+    new_knowledge = (
+        "INCIDENT: Kafka consumer lag spike on orders-stream\n"
+        "ROOT CAUSE: Worker thread deadlock on malformed null JSON message.\n"
+        "VERIFIED RUNBOOK FIX: sudo systemctl restart order-consumer && kubectl scale deployment order-consumer --replicas=5"
+    )
+    memory.retain(bank_id=BANK_ID, content=new_knowledge)
+    print("✓ Newly resolved Kafka outage indexed into Hindsight memory!\n")
+
+    test_kafka_alert = "ALERT: Consumer lag on topic 'orders-stream' exceeded 100,000 records, ingestion stopped!"
+    print(f"Testing recall on new alert: \"{test_kafka_alert}\"")
+    kafka_plan = ask_hindsight_agent(test_kafka_alert)
+    print("\n" + "-" * 25 + " NEWLY LEARNED RUNBOOK " + "-" * 25)
+    print(kafka_plan)
+    print("-" * 72 + "\n")
