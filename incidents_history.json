@@ -1,0 +1,12 @@
+[
+  {
+    "title": "PostgreSQL connection pool exhaustion",
+    "root_cause": "Payment microservice leaked connections, hitting maximum 100 limit.",
+    "fix_command": "sudo systemctl restart pgbouncer && psql -c 'ALTER SYSTEM SET max_connections = 300;' && sudo systemctl reload postgresql"
+  },
+  {
+    "title": "Redis memory saturation under spike traffic",
+    "root_cause": "Default allkeys-lru eviction thrashing disk under burst load.",
+    "fix_command": "redis-cli config set maxmemory-policy volatile-lru"
+  }
+]
