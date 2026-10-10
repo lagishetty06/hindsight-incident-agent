@@ -1,5 +1,6 @@
 venv/
-.pg0/
-.hindsight/
+node_modules/
+dist/
 __pycache__/
-*.log
+*.pyc
+.env
